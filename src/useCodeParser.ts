@@ -1,30 +1,39 @@
-import { ref, computed } from "vue";
+import { ref, computed, type Ref, type ComputedRef } from "vue";
 
 export interface CodePart {
+  name: string;
+  description: string;
+  code: string;
+  length?: number | null;
+}
+
+export interface ParsedCodePart {
   code: string;
   value: string;
   name: string;
   description: string;
 }
 
-const CODE_PARTS: CodePart[] = [
-  { name: "Global Trade Item Number", description: "GTIN", code: "01", length: 16 },
-  { name: "Batch or lot number", description: "LOTE", code: "10", length: null },
-  { name: "Production date (YYMMDD)", description: "FECHA DE PRODUCCIÓN", code: "11", length: 8 },
-  { name: "Expiration date (YYMMDD)", description: "FECHA DE CACUCIDAD", code: "17", length: 8 },
-  { name: "Serial number", description: "SERIAL", code: "21", length: null },
-  { name: "National product code", description: "NPC", code: "712", length: null },
-];
-
-const DATAMATRIX_FNC1 = ["]C1", "]e0", "]d1", "]d2", "]q3"];
-const QR_FNC1 = ["]Q1", "]Q2", "]Q3", "]Q4"];
-const EAN_FNC1 = ["]E0"];
+type ParsedResult = string | ParsedCodePart[] | null;
 
 export function useCodeParser() {
-  const parsedResult = ref<string | CodePart[] | null>(null);
+  const parsedResult: Ref<ParsedResult> = ref(null);
   const buffer = ref("");
-  const isQr = ref(false);
   let bufferTimeout: number | null = null;
+  const isQr = ref(false);
+
+  const CODE_PARTS: CodePart[] = [
+    { name: "Global Trade Item Number", description: "GTIN", code: "01", length: 16 },
+    { name: "Batch or lot number", description: "LOTE", code: "10", length: null },
+    { name: "Production date (YYMMDD)", description: "FECHA DE PRODUCCIÓN", code: "11", length: 8 },
+    { name: "Expiration date (YYMMDD)", description: "FECHA DE CACUCIDAD", code: "17", length: 8 },
+    { name: "Serial number", description: "SERIAL", code: "21", length: null },
+    { name: "National product code", description: "NPC", code: "712", length: null },
+  ];
+
+  const DATAMATRIX_FNC1 = ["]C1", "]e0", "]d1", "]d2", "]q3"];
+  const QR_FNC1 = ["]Q1", "]Q2", "]Q3", "]Q4"];
+  const EAN_FNC1 = ["]E0"];
 
   const detectType = (code: string): string | undefined => {
     if (isValidEan13(code)) return "EAN-13";
@@ -37,28 +46,24 @@ export function useCodeParser() {
     if (!EAN_FNC1.includes(code.slice(0, 3))) return false;
     code = code.slice(3);
     if (code.length !== 13) return false;
-    const expected = calculateCheckDigit(code.slice(0, 12));
-    const actual = parseInt(code[12]);
-    return expected === actual;
+    return calculateCheckDigit(code.slice(0, 12)) === parseInt(code[12]);
   };
 
   const isValidEan14 = (code: string): boolean => {
     if (!EAN_FNC1.includes(code.slice(0, 3))) return false;
     code = code.slice(3);
     if (code.length !== 14) return false;
-    const expected = calculateCheckDigit(code.slice(0, 13));
-    const actual = parseInt(code[13]);
-    return expected === actual;
+    return calculateCheckDigit(code.slice(0, 13)) === parseInt(code[13]);
   };
 
   const isValidDataMatrix = (code: string): boolean => {
     return DATAMATRIX_FNC1.includes(code.slice(0, 3));
   };
 
-  const handleInput = (newInput: string): Promise<unknown> => {
+  const handleInput = (newInput: string): Promise<ParsedResult> => {
     return new Promise((resolve, reject) => {
       if (!newInput?.trim()) {
-        reject("Input vacío o inválido");
+        reject("Input inválido");
         return;
       }
 
@@ -66,27 +71,33 @@ export function useCodeParser() {
 
       if (bufferTimeout) clearTimeout(bufferTimeout);
 
-      bufferTimeout = setTimeout(() => {
-        getParsedCode(buffer.value)
-          .then(result => {
-            parsedResult.value = result;
-            resolve(result);
-          })
-          .catch(reject);
+      bufferTimeout = window.setTimeout(async () => {
+        try {
+          const result = await handleParse();
+          resolve(result);
+        } catch (error) {
+          reject(error);
+        }
       }, 300);
     });
   };
 
-  const getParsedCode = async (code: string): Promise<string | CodePart[]> => {
-    isQr.value = false;
+  const handleParse = async (): Promise<ParsedResult> => {
+    if (!buffer.value?.trim()) return null;
+    const result = await getParsedCode(buffer.value);
+    parsedResult.value = result;
+    return result;
+  };
 
+  const getParsedCode = async (code: string): Promise<ParsedResult> => {
+    isQr.value = false;
     switch (detectType(code)) {
       case "EAN-13":
-        return code.replace("]E0", "");
+        return parseEan13(code);
       case "EAN-14":
-        return code.replace("]E0", "");
+        return parseEan14(code);
       case "DataMatrix":
-        return createCodeDataMatrix(await parseDataMatrix(code));
+        return createCodeDataMatrix(await getParsedDataMatrix(code));
       case "QR":
         isQr.value = true;
         return code.slice(3);
@@ -95,47 +106,82 @@ export function useCodeParser() {
     }
   };
 
-  const parseDataMatrix = async (code: string): Promise<CodePart[]> => {
-    let str = code.slice(3);
-    const result: CodePart[] = [];
-    let maxIterations = 1000;
+  const createCodeDataMatrix = (parts: ParsedCodePart[]): ParsedCodePart[] => {
+    return parts.map((part) => {
+      const codePart = CODE_PARTS.find((cp) => cp.code === part.code);
+      return {
+        code: part.code,
+        value: part.value,
+        name: codePart?.name ?? "Unknown",
+        description: codePart?.description ?? "Unknown",
+      };
+    });
+  };
+
+  const getParsedDataMatrix = async (code: string): Promise<ParsedCodePart[]> => {
+    let string = code.slice(3);
+    const codeParts: ParsedCodePart[] = [];
     let iteration = 0;
+    const maxIterations = 1000;
 
-    while (str.length && iteration++ < maxIterations) {
-      let match = CODE_PARTS.find(p => str.startsWith(p.code));
-      let codeLength = match ? match.code.length : 2;
-      let length: number;
+    while (string.length > 0 && iteration++ < maxIterations) {
+      let currentPart: CodePart | null = null;
+      let codeLength = 0;
 
-      if (match) {
-        length = match.length ?? str.indexOf("+", codeLength);
-        if (length === -1) length = str.length;
-        else length += 1;
-      } else {
-        length = str.indexOf("+", 2);
-        if (length === -1) length = str.length;
-        else length += 1;
+      for (const part of CODE_PARTS) {
+        if (string.startsWith(part.code)) {
+          currentPart = part;
+          codeLength = part.code.length;
+          break;
+        }
       }
 
-      const raw = str.slice(0, length);
-      const code = raw.slice(0, codeLength);
-      const value = raw.slice(codeLength).replace(/\+$/, "");
+      if (currentPart) {
+        let length: number;
 
-      result.push({
-        code,
-        value,
-        name: match?.name || "Unknown",
-        description: match?.description || "Unknown",
-      });
+        if (currentPart.length == null) {
+          const nextPlus = string.indexOf("+", codeLength);
+          length = nextPlus === -1 ? string.length : nextPlus + 1;
+        } else {
+          length = codeLength + currentPart.length - currentPart.code.length;
+        }
 
-      str = str.slice(length);
+        let value = string.slice(codeLength, length).replace(/\+$/, "");
+
+        codeParts.push({
+          code: currentPart.code,
+          value,
+          name: currentPart.name,
+          description: currentPart.description,
+        });
+
+        string = string.slice(length);
+      } else {
+        const unknownCode = string.slice(0, 2);
+        const nextPlus = string.indexOf("+", 2);
+        const length = nextPlus === -1 ? string.length : nextPlus + 1;
+        let value = string.slice(2, length).replace(/\+$/, "");
+
+        codeParts.push({
+          code: unknownCode,
+          value,
+          name: "Unknown",
+          description: "Unknown",
+        });
+
+        string = string.slice(length);
+      }
     }
 
     if (iteration >= maxIterations) {
       throw new Error("Maximum iteration limit reached.");
     }
 
-    return result;
+    return codeParts;
   };
+
+  const parseEan13 = (code: string): string => code.replace("]E0", "");
+  const parseEan14 = (code: string): string => code.replace("]E0", "");
 
   const calculateCheckDigit = (code: string): number => {
     let sum = 0;
@@ -149,14 +195,14 @@ export function useCodeParser() {
     return e.charCode === 29 ? "*" : e.key;
   };
 
-  const isParsedResultArray = computed(() => Array.isArray(parsedResult.value));
+  const isParsedResultArray: ComputedRef<boolean> = computed(() => Array.isArray(parsedResult.value));
 
   return {
     handleInput,
+    checkInvisibleChars,
     parsedResult,
     isParsedResultArray,
     detectType,
     isQr,
-    checkInvisibleChars,
   };
 }

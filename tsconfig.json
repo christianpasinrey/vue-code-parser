@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "Node",
+    "types": ["vue"],                 // ← AÑADE ESTO
+    "skipLibCheck": true,
+    "strict": true,
+    "esModuleInterop": true,
+    "declaration": true,
+    "outDir": "dist"
+  },
+  "include": ["src", "index.ts"]
+}
