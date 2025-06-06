@@ -1,12 +1,12 @@
 # 🎯 vue-code-parser
 
-> 🧩 Composable para Vue 3 para detectar, validar y parsear códigos de barras (EAN-13, EAN-14), QR y DataMatrix (GS1).
+> 🧩 Composable for Vue 3 to detect, validate and parse barcodes (EAN-13, EAN-14), QR and DataMatrix (GS1).
 
-Este paquete te permite trabajar con inputs escaneados o digitados que contienen información estructurada como **GTIN**, **LOTE**, **FECHA**, **SERIAL**, etc., incluyendo parsing avanzado de códigos GS1.
+This package allows you to work with scanned or typed inputs containing structured information such as **GTIN**, **LOT**, **DATE**, **SERIAL**, etc., including advanced parsing of GS1 codes.
 
 ---
 
-## 🚀 Instalación
+## 🚀 Installation
 
 ```bash
 npm install vue-code-parser
@@ -14,19 +14,19 @@ npm install vue-code-parser
 
 ---
 
-## 🧠 ¿Qué hace?
+## 🧠 What does it do?
 
-Detecta el tipo de código escaneado (EAN, QR, DataMatrix) y lo convierte en un objeto legible:
+Detects the type of scanned code (EAN, QR, DataMatrix) and converts it into a readable object:
 
-- ✅ Validación EAN-13 y EAN-14 con cálculo de dígito de control
-- ✅ Parsing de DataMatrix (con soporte GS1 y AI como `01`, `10`, `17`, etc.)
-- ✅ Detección de QR y extracción del payload
-- ✅ Buffer con debounce para evitar repeticiones en escáneres
-- ✅ Manejo de caracteres invisibles (como `charCode === 29`)
+- ✅ EAN-13 and EAN-14 validation with check digit calculation
+- ✅ DataMatrix parsing (with GS1 support and AIs like `01`, `10`, `17`, etc.)
+- ✅ QR detection and payload extraction
+- ✅ Debounced buffer to avoid repetitions from scanners
+- ✅ Handling of invisible characters (such as `charCode === 29`)
 
 ---
 
-## 🧰 Uso básico
+## 🧰 Basic usage
 
 ```ts
 import { useCodeParser } from "vue-code-parser";
@@ -40,7 +40,7 @@ const {
   checkInvisibleChars
 } = useCodeParser();
 
-// En algún método:
+// In some method:
 handleInput(']d20112345678901234101725010110ABC123+')
   .then(() => {
     console.log(parsedResult.value);
@@ -49,57 +49,57 @@ handleInput(']d20112345678901234101725010110ABC123+')
 
 ---
 
-## 🧾 Resultado esperado (DataMatrix GS1)
+## 🧾 Expected result (DataMatrix GS1)
 
 ```ts
 [
   { code: "01", value: "12345678901234", name: "Global Trade Item Number", description: "GTIN" },
-  { code: "17", value: "250101", name: "Expiration date (YYMMDD)", description: "FECHA DE CACUCIDAD" },
-  { code: "10", value: "ABC123", name: "Batch or lot number", description: "LOTE" }
+  { code: "17", value: "250101", name: "Expiration date (YYMMDD)", description: "EXPIRATION DATE" },
+  { code: "10", value: "ABC123", name: "Batch or lot number", description: "LOT" }
 ]
 ```
 
 ---
 
-## 📦 API completa
+## 📦 Full API
 
 <div align="center">
 
 <table>
   <tr>
-    <th>Propiedad</th>
-    <th>Tipo</th>
-    <th>Descripción</th>
+    <th>Property</th>
+    <th>Type</th>
+    <th>Description</th>
   </tr>
   <tr>
     <td><code>handleInput(code)</code></td>
     <td><code>Promise&lt;unknown&gt;</code></td>
-    <td>Procesa el código escaneado con debounce.</td>
+    <td>Processes the scanned code with debounce.</td>
   </tr>
   <tr>
     <td><code>parsedResult</code></td>
-    <td><code>Ref&lt;string \| CodePart[] \| null&gt;</code></td>
-    <td>Resultado parseado del código (string plano o array de partes).</td>
+    <td><code>Ref&lt;string | CodePart[] | null&gt;</code></td>
+    <td>Parsed result of the code (plain string or array of parts).</td>
   </tr>
   <tr>
     <td><code>isParsedResultArray</code></td>
     <td><code>ComputedRef&lt;boolean&gt;</code></td>
-    <td>Indica si el resultado es una lista de partes (DataMatrix).</td>
+    <td>Indicates if the result is a list of parts (DataMatrix).</td>
   </tr>
   <tr>
     <td><code>detectType(code)</code></td>
-    <td><code>string \| undefined</code></td>
-    <td>Devuelve el tipo de código detectado: <code>EAN-13</code>, <code>EAN-14</code>, <code>DataMatrix</code> o <code>QR</code>.</td>
+    <td><code>string | undefined</code></td>
+    <td>Returns the detected code type: <code>EAN-13</code>, <code>EAN-14</code>, <code>DataMatrix</code> or <code>QR</code>.</td>
   </tr>
   <tr>
     <td><code>isQr</code></td>
     <td><code>Ref&lt;boolean&gt;</code></td>
-    <td>Indica si el último código detectado es QR.</td>
+    <td>Indicates if the last detected code is QR.</td>
   </tr>
   <tr>
     <td><code>checkInvisibleChars(event)</code></td>
     <td><code>string</code></td>
-    <td>Devuelve "*" si el <code>charCode</code> del evento es 29.</td>
+    <td>Returns "*" if the event's <code>charCode</code> is 29.</td>
   </tr>
 </table>
 
@@ -107,7 +107,7 @@ handleInput(']d20112345678901234101725010110ABC123+')
 
 ---
 
-## 🧩 Tipos
+## 🧩 Types
 
 ```ts
 interface CodePart {
@@ -120,20 +120,20 @@ interface CodePart {
 
 ---
 
-## 🏷️ Códigos soportados (GS1 AIs)
+## 🏷️ Supported codes (GS1 AIs)
 
-| Código | Descripción                  | Longitud fija |
-|--------|------------------------------|---------------|
-| `01`   | GTIN                         | ✅ 16          |
-| `10`   | Lote                         | ❌ variable    |
-| `11`   | Fecha de producción (YYMMDD) | ✅ 8           |
-| `17`   | Fecha de caducidad (YYMMDD)  | ✅ 8           |
-| `21`   | Número de serie              | ❌ variable    |
-| `712`  | Código nacional (NPC)        | ❌ variable    |
+| Code  | Description                   | Fixed length |
+|-------|-------------------------------|--------------|
+| `01`  | GTIN                          | ✅ 16         |
+| `10`  | Lot                           | ❌ variable   |
+| `11`  | Production date (YYMMDD)      | ✅ 8          |
+| `17`  | Expiration date (YYMMDD)      | ✅ 8          |
+| `21`  | Serial number                 | ❌ variable   |
+| `712` | National code (NPC)           | ❌ variable   |
 
 ---
 
-## 🧪 Ejemplo de integración con input de escáner
+## 🧪 Example integration with scanner input
 
 ```vue
 <template>
@@ -155,12 +155,12 @@ const { handleInput, checkInvisibleChars, parsedResult } = useCodeParser();
 
 ---
 
-## 📃 Licencia
+## 📃 License
 
 [MIT](LICENSE) © Christian
 
 ---
 
-## 🤝 Contribuir
+## 🤝 Contributing
 
-¡Pull requests y feedback son bienvenidos! Si encuentras un código no compatible, puedes abrir un issue o PR con los nuevos GS1 AI.
+Pull requests and feedback are welcome! If you find an unsupported code, you can open an issue or PR with the new GS1 AI.
