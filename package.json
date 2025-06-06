@@ -1,0 +1,14 @@
+{
+  "name": "vue-code-parser",
+  "version": "1.0.0",
+  "description": "Composable para detectar, validar y parsear códigos EAN, DataMatrix y QR en Vue 3",
+  "main": "index.ts",
+  "module": "index.ts",
+  "types": "index.ts",
+  "keywords": ["vue", "composable", "barcode", "ean", "datamatrix", "qr"],
+  "author": "Christian Pasín Rey",
+  "license": "MIT",
+  "peerDependencies": {
+    "vue": "^3.0.0"
+  }
+}
