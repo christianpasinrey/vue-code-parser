@@ -1,6 +1,6 @@
 {
   "name": "@christianpasinrey/vue-code-parser",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Composable para Vue 3 que permite detectar, validar y parsear códigos de barras EAN, DataMatrix y QR (GS1).",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
